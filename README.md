@@ -43,7 +43,7 @@ available in HTML format, for use when manually analyzing bugs. The code
 attempts to determine the security risk of the bug it detected, so even novice
 users may be able to determine whether or not a particular bug is likely to be
 a security vulnerability. You can download a number of example reports [here]
-(https://github.com/SkyLined/BugId/tree/master/Sample%20reports).
+(https://github.com/SkyLined/cBugId/tree/master/Tests/Reports).
 
 You can tell BugId to save a debugger dump file when it detects a crash, for
 later off-line analysis by a developer.
@@ -109,6 +109,10 @@ different bug ids.
   attempted to access a heap block of the given size at the given offset
   before or after the heap block.
   
+* `OOBW[Stack] - (Out-Of-Bounds) The application has written outside of the
+  stack memory it is allowed to modify, overwriting a stack cookie. The change
+  in the stack cookie caused the application to detected and report this issue.
+  
   Both the sizes and the offsets used in the above BugIds can be made
   *architecture independent* by setting the `dxBugIdConfig` setting
   `uArchitectureIndependentBugIdBits` to the smallest number of bits for the
@@ -124,23 +128,23 @@ different bug ids.
   pointer (`OOBW[0x10]+6`; 4+2 and `OOBW[0x20]+0xA`; 8+2) would result in
   `OOBW[4*N]+2` for both.
 
-* `StackExhaustion` - A function has attempted to allocate too much stack memory.
-* `RecursiveCall` - A recursive function call loop has used too much stack memory.
-* `C++` - An unhandeled C++ exception 
-* `OOM` - Out Of Memory: the application attempted to allocate too much memory.
 * `Assert` - An assertion has failed.
-* `HeapCorrupt` - Application verifier has detected heap corruption.
-* `LegacyGS`, `StackCookie` - /GS detected that a stack cookie was modified.
-* `VTGuard` - VTGuard detected that a virtual function table cookie was modified.
-* `CorruptList` - Safe unlinking detect a corrupted LIST_ENTRY
-* `GuardICall` - Control Flow Guard (CFG) detect a call to an invalid address.
-* `RefCount` - A reference counter was incremented beyond its maximum value.
-* `PureCall` - A pure virtual function was called.
-* `InvalidHandle` - An operation was performed on an invalid handle.
 * `Breakpoint` - A debugger breakpoint was triggered.
-* `IllegalInstruction` - An illegal instruction was executed.
-* `FloatDivideByZero` and `IntegerDivideByZero` - A division by zero occured.
+* `C++` - An unhandeled C++ exception 
+* `CFG` - Control Flow Guard (CFG) detected an invalid function address.
+* `CorruptList` - Safe unlinking detect a corrupted LIST_ENTRY
 * `CPUUsage` - Excessive CPU usage was detected.
+* `FloatDivideByZero` and `IntegerDivideByZero` - A division by zero occured.
+* `HeapCorrupt` - Application verifier has detected heap corruption.
+* `IllegalInstruction` - An illegal instruction was executed.
+* `InvalidHandle` - An operation was performed on an invalid handle.
+* `LegacyGS`, `StackCookie` - /GS detected that a stack cookie was modified.
+* `RecursiveCall` - A recursive function call loop has used too much stack memory.
+* `RefCount` - A reference counter was incremented beyond its maximum value.
+* `StackExhaustion` - A function has attempted to allocate too much stack memory.
+* `OOM` - Out Of Memory: the application attempted to allocate too much memory.
+* `PureCall` - A pure virtual function was called.
+* `VTGuard` - VTGuard detected that a virtual function table cookie was modified.
 These are the values you are likely to see. For a full list, please refer to the
 source code. Every bug report includes a description of the bug, which explains
 the type of issue in more detail.
@@ -241,23 +245,19 @@ options on the command line. Each option takes this form:
 
     --[option name]=[JSON option value]
 
-The any option specified in `dxBugIdConfig.py` can be used as the `option name`;
-see the file for a complete list of options. The following options are probably
+Any option specified in `dxConfig.py` can be used as the `option name`; see the
+file for a complete list of options. The following options are probably
 the most interesting ones:
 
-    --bSaveReport=true
+    --bGenerateReportHTML=true
 
-Tell BugId to save a html formatted report for the crash it detects.
+Tell BugId to save a HTML formatted report for the crash it detects.
 
     --bSaveDump=true
     --bOverwriteDump=true
 
 Tell BugId to save a dump file, and to overwrite any existing dump file. The
 file name of the dump file is based on the crash id.
-
-    --sCdbBinaryPath_x86="path\to\cdb.exe"
-
-Tell BugId to use a cdb.exe binary from a specific location.
 
     --nApplicationMaxRunTime=[number of seconds]
 
@@ -266,6 +266,16 @@ seconds without crashing. For instance, if you want to give an application 3
 seconds to load and process a test case, use "--nApplicationMaxRunTime=3": if
 the application has not crashed after running 3 seconds, it will be terminated
 and no bug is reported.
+
+You can also modify the configuration options for `cBugId` itself, as specified
+in the `dxBugIdConfig.py` file for that project. These settings can also be
+used as the `option name` if they are prefixed with `cBugId.`; see that file
+for a complete list of options. For instance:
+
+    --cBugId.sCdbBinaryPath_x86="path\to\cdb.exe"
+
+Tell BugId to use a cdb.exe binary from a specific location.
+
 
 cBugId.py
 ---------
@@ -450,9 +460,9 @@ License
 This work is licensed under a [Creative Commons Attribution-NonCommercial 4.0
 International License](http://creativecommons.org/licenses/by-nc/4.0/). It is
 provided free of charge for non-commercial use only. If you would like to use
-it commercially, please contact the author at [berendjanwever@gmail.com][] to
+it commercially, please contact the author at [bugid@skylined.nl][] to
 discuss licensing options. If you find it useful and would like to make a
 donation, you can send bitcoin to [183yyxa9s1s1f7JBpPHPmzQ346y91Rx5DX]. 
 
 [183yyxa9s1s1f7JBpPHPmzQ346y91Rx5DX]:bitcoin:183yyxa9s1s1f7JBpPHPmzQ346y91Rx5DX
-[berendjanwever@gmail.com]:mailto:berendjanwever@gmail.com
+[bugid@skylined.nl]:mailto:berendjanwever@gmail.com
