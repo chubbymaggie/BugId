@@ -1,3 +1,34 @@
+2017-05-31
+==========
++ BugId now has an ASCII art logo and outputs text to the console in various
+  colors!
++ New cBugId version has lots of improvements. BugId code was changed to use
+  some of the new features and work with the changes in the API.
++ Added `--version` switch, which checks for updates and displays version
+  information.
++ New processes are shown as they are created.
++ Google Chrome default arguments have been updated.
++ Page heap is now enabled for Firefox updater.exe as well.
++ Adobe Reader is now terminated when the main process exits.
++ The `AdobeARM.exe` binary was added to `pageheap.cmd` for `acrobatdc`.
+  I don't have a VM with the non-DC `acrobat` to test if it should be added
+  there as well. Let me know if you find that it does and I will add it!
++ When a main process terminates, it's process id and binary name are shown.
++ When page heap is not enabled for a process, an error is shown and BugId
+  terminates. This can be disabled with the `--cBugId.bEnsurePageHeap=false`
+  switch, or by making the appropriate changed in `dxConfig.py`. A whitelist
+  of applications that are allowed to run without page heap is also available
+  (`gasBinariesThatAreAllowedToRunWithoutPageHeap` in `BugId.py`). Let me know
+  if you would like to see anything added to this whitelist.
++ Internal exceptions now include a call stack. This should make tracking down
+  an externally reported issue a lot easier. Don't forget to report any bugs
+  you find in BugId itself!!
++ Added `bExcessiveCPUUsageCheckEnabled` (default `False`) which disables
+  excessive CPU usage checks by default. Set to `True` to re-enable this.
++ `PageHeap.cmd` now accepts an application keyword, which causes it to enable
+  page heap for all the relevant binaries for that application. This replaces
+  all the application specific `PageHeap-*.cmd` files.
+
 2017-03-24
 ==========
 + new "bApplicationTerminatesWithMainProcess" config setting allows an

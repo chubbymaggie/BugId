@@ -91,6 +91,8 @@ different bug ids.
   * `Unallocated` - no memory is allocated at the address,
   * `Reserved` - memory has been reserved but not committed at this address,
   * `Arbitrary` - memory is allocated at this address, but not accessible,
+  * `CFG` - Control Flow Guard (CFG) attempted to check an invalid function
+    pointer.
   
   An optional offset is added if the access violation happened near the exact
   address, e.g. AVR:NULL+8 is an attempt to write at offset 8 from a NULL
@@ -131,7 +133,6 @@ different bug ids.
 * `Assert` - An assertion has failed.
 * `Breakpoint` - A debugger breakpoint was triggered.
 * `C++` - An unhandeled C++ exception 
-* `CFG` - Control Flow Guard (CFG) detected an invalid function address.
 * `CorruptList` - Safe unlinking detect a corrupted LIST_ENTRY
 * `CPUUsage` - Excessive CPU usage was detected.
 * `FloatDivideByZero` and `IntegerDivideByZero` - A division by zero occured.
@@ -287,8 +288,8 @@ sub-folder (e.g. "BugId") of your project and importing the `cBugId` class:
     oBugId = cBugId(...);
     
     oBugId.fWait();
-    if oBugId.oErrorReport:
-      print "Error: %s" % oErrorReport.sId;
+    if oBugId.oBugReport:
+      print "Error: %s" % oBugReport.sId;
 
 (You can either wait for BugId to finish by calling `fWait`, or perform other
 functions until the `fFinishedCallback` is called. See below for more details
