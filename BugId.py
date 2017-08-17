@@ -16,6 +16,13 @@ import codecs, json, re, os, sys, threading, time, traceback;
                           ``                                                    
                                                                                 
 """;
+# Running this script will return an exit code, which translates as such:
+# 0 = executed successfully, no bugs found.
+# 1 = executed successfully, bug detected.
+# 2 = bad arguments
+# 3 = internal error
+# 4 = failed to start process or attach to process(es).
+
 
 # Augment the search path: look in main folder, parent folder or "modules" child folder, in that order.
 sMainFolderPath = os.path.dirname(__file__);
@@ -29,10 +36,11 @@ from oConsole import oConsole;
 from oVersionInformation import oVersionInformation;
 
 # Colors used in output for various types of information:
-NORMAL = -1;  # Console default color
-INFO = 10;    # Light green
-HILITE = 15;  # White
-ERROR = 12;   # Light red
+NORMAL =  0x0F07;  # Console default color
+INFO =    0x0F0A;  # Light green (foreground only)
+HILITE =  0x0F0F;  # White (foreground only)
+ERROR =   0x0F0C;  # Light red (foreground only)
+oConsole.uDefaultColor = NORMAL;
 
 # Load external dependecies to make sure they are available and shown an error
 # if any one fails to load. This error explains where the missing component
@@ -76,6 +84,7 @@ asChromeDefaultArguments = [
   "--enable-experimental-canvas-features",
   "--enable-experimental-input-view-features",
   "--enable-experimental-web-platform-features",
+  "--enable-logging=stderr",
   "--enable-usermedia-screen-capturing",
   "--enable-viewport",
   "--enable-webgl-draft-extensions",
@@ -85,6 +94,7 @@ asChromeDefaultArguments = [
   "--disable-prompt-on-repost",
   "--force-renderer-accessibility",
   "--javascript-harmony",
+  "--js-flags=\"--expose-gc\"",
   "--no-sandbox",
 ];
 asFirefoxDefaultArguments = [
@@ -119,7 +129,7 @@ gsApplicationId_by_sKeyword = {
   "edge": "MicrosoftEdge",
 };
 gasApplicationAttachToProcessesForBinaryNames_by_sKeyword = {
-  "edge": ["browser_broker.exe", "RuntimeBroker.exe"],
+  "edge": ["browser_broker.exe"],
 };
 # These arguments are always added
 gdApplication_asStaticArguments_by_sKeyword = {
@@ -145,6 +155,7 @@ gdApplication_asDefaultOptionalArguments_by_sKeyword = {
   "chrome": [DEFAULT_BROWSER_TEST_URL],
   "chrome_x86": [DEFAULT_BROWSER_TEST_URL],
   "chrome_x64": [DEFAULT_BROWSER_TEST_URL],
+  "edge": [DEFAULT_BROWSER_TEST_URL],
   "firefox": [DEFAULT_BROWSER_TEST_URL],
   "firefox_x86": [DEFAULT_BROWSER_TEST_URL],
   "firefox_x64": [DEFAULT_BROWSER_TEST_URL],
@@ -260,6 +271,9 @@ gasBinariesThatAreAllowedToRunWithoutPageHeap = [
   "firefox.exe",
   # Adobe Reader has a component that crashes immediately with a NULL pointer exception when you enable page heap.
   "RdrCEF.exe",
+  # Applications may spawn additional console applications, which require conhost.exe. This executable is part of the
+  # windows OS and not part of the application, so you may want to keep page heap disabled for it.
+  "conhost.exe",
 ];
 asApplicationKeywords = sorted(list(set(
   gdApplication_sBinaryPath_by_sKeyword.keys() +
@@ -351,7 +365,7 @@ def fApplicationRunTimeoutHandler(oBugId):
 def fInternalExceptionHandler(oBugId, oException, oTraceBack):
   global gbAnErrorOccured;
   gbAnErrorOccured = True;
-  fDumpException(oException, oTraceBack);
+  fDumpExceptionAndExit(oException, oTraceBack);
 
 def fFailedToDebugApplicationHandler(oBugId, sErrorMessage):
   global gbAnErrorOccured;
@@ -410,6 +424,10 @@ def fMainProcessTerminatedHandler(oBugId, uProcessId, sBinaryName):
         (oBugId.fnApplicationRunTime(), uProcessId, uProcessId, sBinaryName));
     oConsole.fPrint();
 
+def fStdInInputHandler(oBugId, sInput):
+  oConsole.fPrint(HILITE,"<stdin<", NORMAL, sInput);
+def fStdOutOutputHandler(oBugId, sOutput):
+  oConsole.fPrint(INFO,"stdout>", NORMAL, sOutput);
 def fStdErrOutputHandler(oBugId, sOutput):
   oConsole.fPrint(ERROR,"stderr>", NORMAL, sOutput);
 
@@ -421,7 +439,7 @@ def fNewProcessHandler(oBugId, oProcess):
   if gasAttachToProcessesForBinaryNames:
     oBugId.fAttachToProcessesForBinaryNames(gasAttachToProcessesForBinaryNames);
 
-def fDumpException(oException, oTraceBack):
+def fDumpExceptionAndExit(oException, oTraceBack):
   oConsole.fPrint(ERROR, "-" * 80);
   oConsole.fPrint(ERROR, "- An internal exception has occured:");
   oConsole.fPrint(ERROR, "  %s" % repr(oException));
@@ -459,22 +477,29 @@ def fDumpException(oException, oTraceBack):
   oConsole.fPrint("In your report, please copy the information about the exception reported");
   oConsole.fPrint("above, as well as the stack trace and BugId version information. This makes");
   oConsole.fPrint("it easier to determine the cause of this issue and makes for faster fixes.");
-  oConsole.fPrint("Thank you in advance for helping to improve BugId!");
   oConsole.fPrint();
-  os._exit(0);
+  if "-v" not in sys.argv[1:] and "/v" not in sys.argv[1:] and "--verbose=true" not in sys.argv[1:]:
+    oConsole.fPrint("If you can reproduce the issue, it would help a lot if you can run BugId in");
+    oConsole.fPrint("verbose mode by adding the ", INFO, "--verbose", NORMAL, " command-line argument.");
+    oConsole.fPrint("as in:", HILITE, "BugId -v ", " ".join(sys.argv[1:]));
+    oConsole.fPrint();
+  oConsole.fPrint("Thank you in advance for helping to improve BugId!");
+  os._exit(3);
 
 def fuVersionCheck():
-  for (sModuleName, oModule, oModuleVersionInformation, fsVersionCheck) in [
+  axModules = [
     ("BugId",       sys.modules["__main__"],        oVersionInformation,                              None),
     ("cBugId",      sys.modules[cBugId.__module__], getattr(cBugId, "oVersionInformation", None),     getattr(cBugId, "fsVersionCheck", None)),
     ("FileSystem",  FileSystem,                     getattr(FileSystem, "oVersionInformation", None), getattr(FileSystem, "fsVersionCheck", None)),
     ("Kill",        Kill,                           getattr(Kill, "oVersionInformation", None),       getattr(Kill, "fsVersionCheck", None)),
-  ]:    
+  ];
+  uCounter = 0;
+  for (sModuleName, oModule, oModuleVersionInformation, fsVersionCheck) in axModules:
     if oModuleVersionInformation:
       assert sModuleName == oModuleVersionInformation.sProjectName, \
           "Module %s reports that it is called %s" % (sModuleName, oModuleVersionInformation.sProjectName);
       oConsole.fPrint("+ ", oModuleVersionInformation.sProjectName, " version ", oModuleVersionInformation.sCurrentVersion, ".");
-      oConsole.fStatus("* Checking ", INFO, oModuleVersionInformation.sProjectName, NORMAL, " for updates...");
+      oConsole.fProgressBar(uCounter * 1.0 / len(axModules), "* Checking %s for updates..." % oModuleVersionInformation.sProjectName);
       if oModuleVersionInformation.bPreRelease:
         oConsole.fPrint("  + You are running a ", HILITE, "pre-release", NORMAL, " version. ",
             "The latest release version is ", INFO, oModuleVersionInformation.sLatestVersion, NORMAL, ".");
@@ -486,6 +511,7 @@ def fuVersionCheck():
     else:
       oConsole.fPrint("- You are running an ", ERROR, "outdated", NORMAL, " version of ", INFO, sModuleName, NORMAL, ".");
     oConsole.fPrint("  + Installation path: %s" % os.path.dirname(oModule.__file__));
+    uCounter += 1;
   oConsole.fPrint();
   return 0;
 
@@ -496,13 +522,7 @@ def fuMain(asArguments):
     fPrintLogo();
     fPrintUsage(asApplicationKeywords);
     return 0;
-  # returns an exit code, values are:
-  # 0 = executed successfully, no bugs found.
-  # 1 = executed successfully, bug detected.
-  # 2 = bad arguments
-  # 3 = internal error
-  # 4 = failed to start process or attach to process(es).
-  # Parse all "--" arguments until we encounter a non-"--" argument.
+  # Parse all arguments until we encounter "--".
   sApplicationKeyword = None;
   sApplicationBinaryPath = None;
   auApplicationProcessIds = [];
@@ -525,6 +545,8 @@ def fuMain(asArguments):
       break;
     elif sArgument in ["-q", "/q"]:
       gbQuiet = True;
+    elif sArgument in ["-v", "/v"]:
+      dxConfig["bOutputCdbIO"] = True;
     elif sArgument in ["-f", "/f"]:
       bFast = True;
     elif sArgument in ["-r", "/r"]:
@@ -560,7 +582,7 @@ def fuMain(asArguments):
           oConsole.fPrint(ERROR, "- You cannot supply process ids and an application package name.");
           return 2;
         if "!" not in sValue:
-          oConsole.fPrint(ERROR, "- Please provide a string of the form %s=<package name>!<application id>.", sSettingName);
+          oConsole.fPrint(ERROR, "- Please provide a string of the form ", HILITE, sSettingName, "=<package name>!<application id>.");
           return 2;
         sApplicationPackageName, sApplicationId = sValue.split("!", 1);
       elif sSettingName in ["version", "check-for-updates"]:
@@ -572,6 +594,8 @@ def fuMain(asArguments):
         sApplicationISA = sValue;
       elif sSettingName in ["quiet", "silent"]:
         gbQuiet = sValue.lower() == "true";
+      elif sSettingName in ["verbose", "debug", "cdb-io"]:
+        dxConfig["bOutputCdbIO"] = sValue.lower() == "true";
       elif sSettingName in ["fast", "quick"]:
         bFast = True;
       elif sSettingName in ["repeat", "forever"]:
@@ -580,7 +604,7 @@ def fuMain(asArguments):
         try:
           xValue = json.loads(sValue);
         except ValueError:
-          oConsole.fPrint(ERROR, "- Cannot decode argument JSON value %s." % sValue);
+          oConsole.fPrint(ERROR, "- Cannot decode argument JSON value ", HILITE, sValue, ERROR, ".");
           return 2;
         # User provided config settings must be applied after any keyword specific config settings:
         dxUserProvidedConfigSettings[sSettingName] = xValue;
@@ -618,27 +642,31 @@ def fuMain(asArguments):
     if sApplicationKeyword in gdApplication_sBinaryPath_by_sKeyword:
       # This application is started from the command-line.
       if auApplicationProcessIds:
-        oConsole.fPrint(ERROR, "- You cannot specify process ids for application keyword ", INFO, sApplicationKeyword, NORMAL, ".");
+        oConsole.fPrint(ERROR, "- You cannot specify process ids for application keyword ", HILITE, sApplicationKeyword, ERROR, ".");
         return 2;
       if sApplicationPackageName:
-        oConsole.fPrint(ERROR, "- You cannot specify an application package name for application keyword ", INFO, sApplicationKeyword, NORMAL, ".");
+        oConsole.fPrint(ERROR, "- You cannot specify an application package name for application keyword ", HILITE, sApplicationKeyword, ERROR, ".");
         return 2;
       if sApplicationBinaryPath is None:
         sApplicationBinaryPath = gdApplication_sBinaryPath_by_sKeyword[sApplicationKeyword];
+        if sApplicationBinaryPath is None:
+          oConsole.fPrint(ERROR, "- The main application binary for ", HILITE, sApplicationKeyword, ERROR, " could not be detected on your system.");
+          oConsole.fPrint(ERROR, "  Please provide the path to this binary in the arguments.");
+          return 4;
     elif sApplicationKeyword in gsApplicationPackageName_by_sKeyword:
       # This application is started as an application package.
       if sApplicationBinaryPath:
-        oConsole.fPrint(ERROR, "- You cannot specify an application binary for application keyword ", INFO, sApplicationKeyword, NORMAL, ".");
+        oConsole.fPrint(ERROR, "- You cannot specify an application binary for application keyword ", HILITE, sApplicationKeyword, ERROR, ".");
         return 2;
       sApplicationPackageName = gsApplicationPackageName_by_sKeyword[sApplicationKeyword];
       sApplicationId = gsApplicationId_by_sKeyword[sApplicationKeyword];
     elif not auApplicationProcessIds:
       # This application is attached to.
-      oConsole.fPrint(ERROR, "- You must specify process ids for application keyword ", INFO, sApplicationKeyword, NORMAL, ".");
+      oConsole.fPrint(ERROR, "- You must specify process ids for application keyword ", HILITE, sApplicationKeyword, ERROR, ".");
       return 2;
     elif asApplicationOptionalArguments:
       # Cannot supply arguments if we're attaching to processes
-      oConsole.fPrint(ERROR, "- You cannot specify arguments for application keyword ", INFO, sApplicationKeyword, NORMAL, ".");
+      oConsole.fPrint(ERROR, "- You cannot specify arguments for application keyword ", HILITE, sApplicationKeyword, ERROR, ".");
       return 2;
     if sApplicationKeyword in gasApplicationAttachToProcessesForBinaryNames_by_sKeyword:
       gasAttachToProcessesForBinaryNames = gasApplicationAttachToProcessesForBinaryNames_by_sKeyword[sApplicationKeyword];
@@ -670,10 +698,16 @@ def fuMain(asArguments):
     if not sApplicationISA and sApplicationKeyword in gdApplication_sISA_by_sKeyword:
       # Apply application specific ISA
       sApplicationISA = gdApplication_sISA_by_sKeyword[sApplicationKeyword];
+  elif not (auApplicationProcessIds or sApplicationPackageName or sApplicationBinaryPath):
+    oConsole.fPrint(ERROR, "- You must specify something to debug. This can be either one or more process");
+    oConsole.fPrint(ERROR, "  ids, an application command-line or an UWP app package name.");
+    oConsole.fPrint("Run \"BugId -h\" for help on command-line arguments.");
+    return 2;
   else:
     # There are no static arguments if there is no application keyword, only the user-supplied optional arguments
     # are used if they are supplied:
     asApplicationArguments = asApplicationOptionalArguments or [];
+      
   
   # Apply user provided settings:
   for (sSettingName, xValue) in dxUserProvidedConfigSettings.items():
@@ -734,11 +768,13 @@ def fuMain(asArguments):
       fInternalExceptionCallback = fInternalExceptionHandler,
       fFinishedCallback = None,
       fPageHeapNotEnabledCallback = fPageHeapNotEnabledHandler,
+      fStdInInputCallback = dxConfig["bOutputCdbIO"] and fStdInInputHandler or None,
+      fStdOutOutputCallback = dxConfig["bOutputCdbIO"] and fStdOutOutputHandler or None,
       fStdErrOutputCallback = fStdErrOutputHandler,
       fNewProcessCallback = fNewProcessHandler,
     );
     if dxConfig["nApplicationMaxRunTime"] is not None:
-      oBugId.fxSetTimeout(dxConfig["nApplicationMaxRunTime"], fApplicationRunTimeoutHandler, oBugId);
+      oBugId.foSetTimeout("Maximum application runtime", dxConfig["nApplicationMaxRunTime"], fApplicationRunTimeoutHandler, oBugId);
     if dxConfig["bExcessiveCPUUsageCheckEnabled"] and dxConfig["nExcessiveCPUUsageCheckInitialTimeout"]:
       oBugId.fSetCheckForExcessiveCPUUsageTimeout(dxConfig["nExcessiveCPUUsageCheckInitialTimeout"]);
     oBugId.fStart();
@@ -747,7 +783,12 @@ def fuMain(asArguments):
       return 3;
     if oBugId.oBugReport is not None:
       oConsole.fPrint(HILITE, "A bug was detect in the application:");
-      oConsole.fPrint("  Id @ Location:    ", INFO, oBugId.oBugReport.sId, NORMAL, " @ ", INFO, oBugId.oBugReport.sBugLocation);
+      if oBugId.oBugReport.sBugLocation:
+        oConsole.fPrint("  Id @ Location:    ", INFO, oBugId.oBugReport.sId, NORMAL, " @ ", INFO, oBugId.oBugReport.sBugLocation);
+        sBugIdAndLocation = "%s @ %s" % (oBugId.oBugReport.sId, oBugId.oBugReport.sBugLocation);
+      else:
+        oConsole.fPrint("  Id:               ", INFO, oBugId.oBugReport.sId);
+        sBugIdAndLocation = oBugId.oBugReport.sId;
       if oBugId.oBugReport.sBugSourceLocation:
         oConsole.fPrint("  Source:           ", INFO, oBugId.oBugReport.sBugSourceLocation);
       oConsole.fPrint("  Description:      ", INFO, oBugId.oBugReport.sBugDescription);
@@ -755,7 +796,6 @@ def fuMain(asArguments):
       oConsole.fPrint("  Version:          ", HILITE, oBugId.oBugReport.asVersionInformation[0]); # There is always the process' binary.
       for sVersionInformation in oBugId.oBugReport.asVersionInformation[1:]: # There may be two if the crash was in a
         oConsole.fPrint("                    ", sVersionInformation);                # different binary (e.g. a .dll)
-      sBugIdAndLocation = "%s @ %s" % (oBugId.oBugReport.sId, oBugId.oBugReport.sBugLocation);
       if dxConfig["bGenerateReportHTML"]:
         # We'd like a report file name base on the BugId, but the later may contain characters that are not valid in a file name
         sDesiredReportFileName = "%s.html" % sBugIdAndLocation;
@@ -775,7 +815,7 @@ def fuMain(asArguments):
         else:
           oConsole.fPrint("  Bug report:       ", HILITE, sValidReportFileName, NORMAL, " (%d bytes)" % len(oBugId.oBugReport.sReportHTML));
     else:
-      oConsole.fPrint(10, "The application terminated without a bug being detected.");
+      oConsole.fPrint(INFO, "The application terminated without a bug being detected.");
       sBugIdAndLocation = "No crash";
     oConsole.fPrint("  Application time: %s seconds" % (long(oBugId.fnApplicationRunTime() * 1000) / 1000.0));
     nOverheadTime = time.clock() - nStartTime - oBugId.fnApplicationRunTime();
@@ -821,5 +861,4 @@ if __name__ == "__main__":
     os._exit(uExitCode);
   except Exception as oException:
     cException, oException, oTraceBack = sys.exc_info();
-    fDumpException(oException, oTraceBack);
-    os._exit(3);
+    fDumpExceptionAndExit(oException, oTraceBack);

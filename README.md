@@ -61,7 +61,7 @@ The bug id follows the format `BugType xxx.xxx`, where:
   first hash is for the top-most *relevant* function on the call stack, the
   second hash is for the next *relevant* function on the call stack, etc.
   The number of hashes can be set using the `uStackHashFramesCount` setting in
-  `dxBugIdConfig.py` and the number of digits can be set using
+  `dxConfig.py` and the number of digits can be set using
   `uMaxStackFrameHashChars`. The default settings are 2 and 3 respectively,
   meaning the stack hash represents the function in which the bug is considered
   to be located and its caller. However, for recursive function calls involving
@@ -161,7 +161,7 @@ where:
   be located.
 
 Note that the first *relevant* function (in which the bug is considered to be
-located) may not be the same as the top function on the stacl (the one in which
+located) may not be the same as the top function on the stack (the one in which
 the detected exception occurred). For instance, if a function `A` calls
 `KERNELBASE.dll!RaiseException` to raise an exception,
 `KERNELBASE.dll!RaiseException` is not considered relevant to the bug. In this
@@ -466,4 +466,4 @@ discuss licensing options. If you find it useful and would like to make a
 donation, you can send bitcoin to [183yyxa9s1s1f7JBpPHPmzQ346y91Rx5DX]. 
 
 [183yyxa9s1s1f7JBpPHPmzQ346y91Rx5DX]:bitcoin:183yyxa9s1s1f7JBpPHPmzQ346y91Rx5DX
-[bugid@skylined.nl]:mailto:berendjanwever@gmail.com
+[bugid@skylined.nl]:mailto:bugid@skylined.nl

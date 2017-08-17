@@ -1,3 +1,68 @@
+2017-08-17
+==========
++ New cBugId version fixes a number of bugs and has a few improvements. BugId
+  has been modified to accommodate some these changes.
++ Prevent exception when bug location is unknown.
++ conhost.exe is allowed to run without page heap
++ RuntimeBroker.exe is no longer considered part of Edge.
++ Chrome is now run with the `--jsflags"--expose-gc"` and
+  `--enable-logging=stderr` command-line arguments.
+
+2017-07-17
+==========
++ New cBugId version fixes a bug where the wrong symbol for a function could
+  be used in the BugId and HTML report in same cases. In these cases the
+  function symbol would have an offset, which no function symbol used by BugId
+  should ever have. This new version fixes this issue, and may result in
+  different BugIds for the same issue for that reason.
+  This new version also has improved bug translations, and gathers up to 100
+  stack frames for analysis (up from 40). These to changes may also result in
+  different, but improved BugIds for the same bugs.
++ Default Edge argument has been re-introduced; it got removed by accident in
+  the recent code changes to be able to debug UWP apps.
++ New `-v`/`--verbose` switch allows you to see cdb.exe I/O. You no longer
+  need to modify `cBugId`'s `dxConfig` settings to do this. But you can make
+  this the default by setting `bOutputCdbIO` to True in `dxConfig.py`.
+
+2017-07-10
+==========
++ Fixed a bug in the previous release that prevented BugId from working
+  altogether.
++ New cBugId version has some minor bug fixes and improved bug ids and HTML
+  report.
+
+2017-07-03
+==========
++ Fixed bug in previous oConsole update so it now handles redirected output
+  correctly again.
++ Fixed bug where errorlevel/exit code was not set to 3 for some internal
+  errors.
++ New cBugId version has some minor bug fixes.
++ Add errorlevel/exit code to usage information.
+
+2017-06-30
+==========
++ Updated oConsole to allow conservation of fore- and background colors, and
+  changed BugId to not modify the background color.
++ New cBugId version.
+
+2017-06-27
+==========
++ I did not actually change any code, but I forgot to mentioned that the format
+  for BugId arguments has changed slightly in previous versions. Most
+  importantly, you will need to precede any arguments you want to pass to your
+  application with `--` to separate BugId arguments from application arguments,
+  as in:
+  ```
+  > BugId <bug id arguments> -- <application arguments>
+  ```
+  Run `BugId -?` for a more complete description of the new arguments format.
+
+2017-06-26
+==========
++ New cBugId has updates, improvements and bug fixes.
++ Fixed bug in fPrintLogo.
+
 2017-05-31
 ==========
 + BugId now has an ASCII art logo and outputs text to the console in various
